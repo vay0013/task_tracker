@@ -19,29 +19,30 @@ public class DefaultTaskService implements TaskService {
 
     @Override
     public List<TaskDto> findAll() {
-        return taskRepository.findAll();
+        return taskMapper.toTaskDtoList(taskRepository.findAll());
     }
 
     @Override
-    public Task findById(UUID id) {
-        return taskRepository.findById(id)
-                .orElseThrow(() -> new TaskNotFoundException("Task with id %s not found".formatted(id)));
+    public TaskDto findById(UUID id) {
+        return taskMapper.toTaskDto(taskRepository.findById(id)
+                .orElseThrow(() -> new TaskNotFoundException("Task with id %s not found".formatted(id))));
     }
 
     @Override
-    public Task create(Task task) {
-        return taskRepository.save(task);
+    public void create(TaskDto task) {
+        Task entity = taskMapper.toEntity(task);
+        taskRepository.save(entity);
     }
 
     @Override
-    public void update(Task updatedTask) {
-        taskRepository.findById(updatedTask.getId()).ifPresentOrElse(task -> {
-            task.setTitle(updatedTask.getTitle());
-            task.setDescription(updatedTask.getDescription());
-            task.setExpiryDate(updatedTask.getExpiryDate());
+    public void update(UUID id, TaskDto updatedTask) {
+        taskRepository.findById(id).ifPresentOrElse(task -> {
+            task.setTitle(updatedTask.title());
+            task.setDescription(updatedTask.description());
+            task.setExpiryDate(updatedTask.expiryDate());
             taskRepository.save(task);
         }, () -> {
-            throw new TaskNotFoundException("Task with id %s not found".formatted(updatedTask.getId()));
+            throw new TaskNotFoundException("Task with id %s not found".formatted(id));
         });
     }
 

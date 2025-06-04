@@ -1,6 +1,6 @@
 package com.vay.tasktracker.controller;
 
-import com.vay.tasktracker.model.Task;
+import com.vay.tasktracker.controller.dto.TaskDto;
 import com.vay.tasktracker.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -15,23 +15,23 @@ public class TaskController {
     private final TaskService taskService;
 
     @GetMapping
-    public List<Task> findAll() {
+    public List<TaskDto> findAll() {
         return taskService.findAll();
     }
 
     @GetMapping("{id}")
-    public Task findById(@PathVariable UUID id) {
+    public TaskDto findById(@PathVariable UUID id) {
         return taskService.findById(id);
     }
 
     @PostMapping
-    public Task create(@RequestBody Task task) {
-        return taskService.create(task);
+    public void create(@RequestBody TaskDto task) {
+        taskService.create(task);
     }
 
-    @PutMapping
-    public void update(@RequestBody Task task) {
-        taskService.update(task);
+    @PutMapping("{id}")
+    public void update(@PathVariable UUID id, @RequestBody TaskDto task) {
+        taskService.update(id, task);
     }
 
     @DeleteMapping("{id}")

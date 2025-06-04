@@ -1,21 +1,23 @@
 package com.vay.tasktracker.service;
 
+import com.vay.tasktracker.controller.dto.TaskDto;
 import com.vay.tasktracker.exception.TaskNotFoundException;
+import com.vay.tasktracker.mapper.TaskMapper;
 import com.vay.tasktracker.model.Task;
 import com.vay.tasktracker.repository.TaskRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -24,30 +26,36 @@ class DefaultTaskServiceTest {
     @Mock
     private TaskRepository taskRepository;
 
+    @Mock
+    private TaskMapper taskMapper;
+
     @InjectMocks
     private DefaultTaskService defaultTaskService;
 
     @Test
     void findAll_shouldReturnAllTasks() {
-        UUID uuid1 = UUID.randomUUID();
-        UUID uuid2 = UUID.randomUUID();
-        UUID uuid3 = UUID.randomUUID();
         Instant now = Instant.now();
         List<Task> tasks = List.of(
-                new Task(uuid1, "title", "description", now),
-                new Task(uuid2, "title", "description", now),
-                new Task(uuid3, "title", "description", now));
+                new Task(UUID.randomUUID(), "t1", "d1", now),
+                new Task(UUID.randomUUID(), "t2", "d2", now),
+                new Task(UUID.randomUUID(), "t3", "d3", now)
+        );
+        List<TaskDto> expectedDtos = tasks.stream()
+                .map(task -> new TaskDto(task.getTitle(), task.getDescription(), task.getExpiryDate()))
+                .toList();
         when(taskRepository.findAll()).thenReturn(tasks);
+        when(taskMapper.toTaskDtoList(tasks)).thenReturn(expectedDtos);
 
-        List<Task> result = defaultTaskService.findAll();
+        List<TaskDto> result = defaultTaskService.findAll();
 
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(tasks.size());
         assertThat(result)
                 .usingRecursiveFieldByFieldElementComparator()
-                .containsExactlyInAnyOrderElementsOf(tasks);
+                .containsExactlyInAnyOrderElementsOf(expectedDtos);
 
         verify(taskRepository).findAll();
+        verify(taskMapper).toTaskDtoList(tasks);
     }
 
     @Test
@@ -55,15 +63,19 @@ class DefaultTaskServiceTest {
         UUID uuid = UUID.randomUUID();
         Instant now = Instant.now();
         Task task = new Task(uuid, "title", "description", now);
+        TaskDto expectedDto = new TaskDto(task.getTitle(), task.getDescription(), task.getExpiryDate());
         when(taskRepository.findById(uuid)).thenReturn(Optional.of(task));
+        when(taskMapper.toTaskDto(task)).thenReturn(expectedDto);
 
-        Task result = defaultTaskService.findById(uuid);
+        TaskDto result = defaultTaskService.findById(uuid);
 
         assertThat(result).isNotNull();
         assertThat(result)
                 .usingRecursiveComparison()
                 .isEqualTo(task);
+
         verify(taskRepository).findById(uuid);
+        verify(taskMapper).toTaskDto(task);
     }
 
     @Test
@@ -80,35 +92,28 @@ class DefaultTaskServiceTest {
 
     @Test
     void create_shouldCreateTask() {
-        UUID uuid = UUID.randomUUID();
-        Instant now = Instant.now();
-        Task task = new Task(uuid, "title", "description", now);
-        when(taskRepository.save(any(Task.class))).thenReturn(task);
+        TaskDto dto = new TaskDto("title", "description", Instant.now());
+        Task entity = new Task(UUID.randomUUID(), dto.title(), dto.description(), dto.expiryDate());
+        when(taskMapper.toEntity(dto)).thenReturn(entity);
 
-        Task result = defaultTaskService.create(task);
+        defaultTaskService.create(dto);
 
-        assertThat(result).isNotNull();
-        assertThat(result)
-                .usingRecursiveComparison()
-                .isEqualTo(task);
-        assertThat(result).isEqualTo(task);
-
-        verify(taskRepository).save(any(Task.class));
+        verify(taskMapper).toEntity(dto);
+        verify(taskRepository).save(entity);
     }
 
     @Test
     void update_whenTaskIsPresent_shouldUpdateTask() {
         UUID uuid = UUID.randomUUID();
-        Instant now = Instant.now();
-        Task existingTask = new Task(uuid, "Old title", "Old description", now);
-        Task updatedTask = new Task(uuid, "New Title", "New description", now);
+        Task existingTask = new Task(uuid, "Old title", "Old description", Instant.now());
+        TaskDto updatedTask = new TaskDto("New Title", "New description", Instant.now().plusSeconds(10));
         when(taskRepository.findById(uuid)).thenReturn(Optional.of(existingTask));
 
-        defaultTaskService.update(updatedTask);
+        defaultTaskService.update(uuid, updatedTask);
 
-        assertThat(existingTask)
-                .usingRecursiveComparison()
-                .isEqualTo(updatedTask);
+        assertThat(existingTask.getTitle()).isEqualTo(updatedTask.title());
+        assertThat(existingTask.getDescription()).isEqualTo(updatedTask.description());
+        assertThat(existingTask.getExpiryDate()).isEqualTo(updatedTask.expiryDate());
 
         verify(taskRepository).findById(uuid);
         verify(taskRepository).save(any(Task.class));
@@ -117,10 +122,10 @@ class DefaultTaskServiceTest {
     @Test
     void update_whenTaskIsNotPresent_shouldThrowException() {
         UUID uuid = UUID.randomUUID();
-        Task task = new Task(uuid, "title", "description", Instant.now());
+        TaskDto task = new TaskDto("title", "description", Instant.now());
         when(taskRepository.findById(uuid)).thenReturn(Optional.empty());
 
-        var result = assertThrows(TaskNotFoundException.class, () -> defaultTaskService.update(task));
+        var result = assertThrows(TaskNotFoundException.class, () -> defaultTaskService.update(uuid, task));
 
         assertThat(result).isInstanceOf(TaskNotFoundException.class);
         assertThat(result).hasMessage("Task with id %s not found".formatted(uuid));
