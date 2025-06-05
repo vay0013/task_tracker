@@ -1,4 +1,4 @@
-package com.vay.tasktracker.controller.dto;
+package com.vay.tasktracker.dto.payload;
 
 import java.time.Instant;
 

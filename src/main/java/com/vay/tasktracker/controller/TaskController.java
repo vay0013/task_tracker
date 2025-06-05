@@ -1,6 +1,6 @@
 package com.vay.tasktracker.controller;
 
-import com.vay.tasktracker.controller.dto.TaskDto;
+import com.vay.tasktracker.dto.payload.TaskDto;
 import com.vay.tasktracker.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("api/v1")
+@RequestMapping("api/tasks")
 public class TaskController {
     private final TaskService taskService;
 

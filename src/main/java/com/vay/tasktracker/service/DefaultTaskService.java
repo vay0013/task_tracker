@@ -1,6 +1,6 @@
 package com.vay.tasktracker.service;
 
-import com.vay.tasktracker.controller.dto.TaskDto;
+import com.vay.tasktracker.dto.payload.TaskDto;
 import com.vay.tasktracker.exception.TaskNotFoundException;
 import com.vay.tasktracker.mapper.TaskMapper;
 import com.vay.tasktracker.model.Task;
